@@ -1,0 +1,46 @@
+import React, { useState } from "react";
+import axios from "axios";
+import { Container, TextField, Button, Typography, CircularProgress } from "@mui/material";
+
+const App = () => {
+    const [transaction, setTransaction] = useState({
+        amount: "",
+        location: "",
+        time: "",
+        card_type: ""
+    });
+
+    const [loading, setLoading] = useState(false);
+    const [result, setResult] = useState(null);
+
+    const handleChange = (e) => {
+        setTransaction({ ...transaction, [e.target.name]: e.target.value });
+    };
+
+    const handleSubmit = async () => {
+        setLoading(true);
+        try {
+            const response = await axios.post("http://127.0.0.1:8000/detect_fraud", transaction);
+            setResult(response.data.fraudulent ? "Fraud Detected!" : "Transaction is Safe");
+        } catch (error) {
+            setResult("Error detecting fraud");
+        }
+        setLoading(false);
+    };
+
+    return (
+        <Container maxWidth="sm" style={{ marginTop: "50px" }}>
+            <Typography variant="h4" gutterBottom>AI Fraud Detection</Typography>
+            <TextField label="Amount" name="amount" type="number" fullWidth onChange={handleChange} margin="normal" />
+            <TextField label="Location" name="location" fullWidth onChange={handleChange} margin="normal" />
+            <TextField label="Time" name="time" fullWidth onChange={handleChange} margin="normal" />
+            <TextField label="Card Type" name="card_type" fullWidth onChange={handleChange} margin="normal" />
+            <Button variant="contained" color="primary" fullWidth onClick={handleSubmit} disabled={loading}>
+                {loading ? <CircularProgress size={24} /> : "Check Fraud"}
+            </Button>
+            {result && <Typography variant="h6" style={{ marginTop: "20px" }}>{result}</Typography>}
+        </Container>
+    );
+};
+
+export default App;

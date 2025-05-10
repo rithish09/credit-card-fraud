@@ -1,0 +1,80 @@
+from fastapi import FastAPI, HTTPException, Depends
+from pydantic import BaseModel
+import pandas as pd
+import numpy as np
+import sqlite3
+import joblib
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from typing import Dict
+from datetime import datetime
+from jose import jwt
+
+# Secret key for authentication
+SECRET_KEY = "supersecretkey"
+ALGORITHM = "HS256"
+
+app = FastAPI()
+
+# Load dataset and train model
+data = pd.read_csv("transactions.csv")
+data.fillna(0, inplace=True)
+X = data.drop(columns=["is_fraud"])
+y = data["is_fraud"]
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+model = RandomForestClassifier(n_estimators=100)
+model.fit(X_train, y_train)
+
+# Save trained model
+joblib.dump(model, "fraud_model.pkl")
+
+# Function to generate JWT token
+def create_token():
+    token = jwt.encode({"timestamp": str(datetime.utcnow())}, SECRET_KEY, algorithm=ALGORITHM)
+    return token
+
+# Database connection
+conn = sqlite3.connect("transactions.db")
+cursor = conn.cursor()
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS transactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    amount REAL,
+    location TEXT,
+    time TEXT,
+    card_type TEXT,
+    is_fraud INTEGER
+)
+""")
+conn.commit()
+
+# Request model for transaction
+class Transaction(BaseModel):
+    amount: float
+    location: str
+    time: str
+    card_type: str
+
+# Load trained model
+model = joblib.load("fraud_model.pkl")
+
+@app.post("/detect_fraud", response_model=Dict)
+def detect_fraud(transaction: Transaction):
+    transaction_data = pd.DataFrame([transaction.dict()])
+    prediction = model.predict(transaction_data)[0]
+
+    # Store in database
+    cursor.execute("""
+    INSERT INTO transactions (amount, location, time, card_type, is_fraud) 
+    VALUES (?, ?, ?, ?, ?)
+    """, (transaction.amount, transaction.location, transaction.time, transaction.card_type, prediction))
+    conn.commit()
+
+    return {"fraudulent": bool(prediction), "message": "Transaction analyzed successfully"}
+
+@app.get("/generate_token")
+def get_token():
+    return {"token": create_token()}
+
+# Run server using: uvicorn filename:app --reload

@@ -1,0 +1,87 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import plotly.express as px
+import seaborn as sns
+import matplotlib.pyplot as plt
+from wordcloud import WordCloud, STOPWORDS
+from collections import Counter
+import pandas as pd
+import warnings
+warnings.filterwarnings('ignore')
+df=pd.read_csv('/kaggle/input/credit-card-fraud-detection/credit_card_fraud_dataset.csv')
+df.head()
+df.shape
+df.info()
+df.describe().T.plot(kind='bar')
+df.columns.tolist()
+for col in df:
+    sns.histplot(x=col,data=df,kde=True)
+    plt.show()
+for col in df:
+    if df[col].dtype == 'O':
+        sns.countplot(x=col,data=df)
+        plt.show()
+numeric_df = df.select_dtypes(include=[np.number])
+plt.figure(figsize=(10, 8))
+sns.heatmap(numeric_df.corr(), annot=True, cmap='coolwarm')
+plt.title('Correlation Heatmap')
+plt.show()
+features=['Amount','MerchantID','TransactionType','Location']
+target='IsFraud'
+X=df1[features]
+y=df[target]
+X_train,X_test,Y_train,Y_test = train_test_split(X,y,test_size=0.25,random_state=42)
+transformer = ColumnTransformer(
+    [
+       ("encoder",OneHotEncoder(),['TransactionType','Location'])
+    ]
+)
+X_train_transformed = transformer.fit_transform(X_train)
+X_test_transformed = transformer.transform(X_test)
+models ={"randomForest":RandomForestClassifier(),
+        "DecisionTree":DecisionTreeClassifier(),
+        "XGBClassifier":XGBClassifier(),
+        "LogisticRegression":LogisticRegression()   
+        }
+accuracies=[]
+for name,model in models.items():
+    model.fit(X_train_transformed,Y_train)
+    ypred = model.predict(X_test_transformed)
+    accuracies.append({"Model":name,"Accuracy":accuracy_score(Y_test,ypred)})
+    
+accuracies
+[{'Model': 'randomForest', 'Accuracy': 0.98956},
+ {'Model': 'DecisionTree', 'Accuracy': 0.98956},
+ {'Model': 'XGBClassifier', 'Accuracy': 0.98956},
+ {'Model': 'LogisticRegression', 'Accuracy': 0.98956}]
+print(classification_report(Y_test,ypred))
+confusion_matrix(Y_test,ypred)
+import matplotlib.pyplot as plt
+from wordcloud import WordCloud, STOPWORDS
+from collections import Counter
+import pandas as pd
+
+# Assuming dataset is your DataFrame and stop_words_list is a list of stopwords
+
+# Example stopwords list, modify as needed
+stop_words_list = set(STOPWORDS)
+
+# Generate frequency counts from the 'business_category' column
+counts = Counter(df["Location"].dropna().apply(lambda x: str(x)))
+
+# Generate the word cloud
+wcc = WordCloud(
+    background_color="black",
+    width=1600, height=800,
+    max_words=2000,
+    stopwords=stop_words_list
+)
+wcc.generate_from_frequencies(counts)
+
+# Display the word cloud
+plt.figure(figsize=(10, 5), facecolor='k')
+plt.imshow(wcc, interpolation='bilinear')
+plt.axis("off")
+plt.tight_layout(pad=0)
+plt.show()
